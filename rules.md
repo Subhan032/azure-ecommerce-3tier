@@ -1,0 +1,13 @@
+# Project Constraints & Rules
+- Stack: 
+  - Frontend: React (Vite)
+  - Backend: Node.js (Express/Prisma) or 
+  - Database: PostgreSQL
+  - Infrastructure: Terraform
+  - Containerization: Docker & Docker Compose
+- Cloud Constraints (Azure Free Tier Only):
+  - Azure Static Web Apps (Free tier)
+  - Azure Container Apps (Consumption plan, minReplicas = 0)
+  - Azure Database for PostgreSQL (Flexible Server, Standard_B1ms SKU)
+  - Azure Key Vault (Standard, Managed Identity authentication)
+- Security: No hardcoded secrets, connection strings, or static Azure service principal credentials.
