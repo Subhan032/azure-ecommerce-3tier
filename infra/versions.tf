@@ -12,11 +12,6 @@ terraform {
     }
   }
 
-  backend "azurerm" {
-    resource_group_name  = "rg-ecommerce-tfstate"
-    storage_account_name = "stecommercetfstate"
-    container_name       = "tfstate"
-    key                  = "prod.terraform.tfstate"
-  }
+  backend "azurerm" {}
 }
 
