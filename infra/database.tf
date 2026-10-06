@@ -18,7 +18,7 @@ resource "azurerm_postgresql_flexible_server" "db" {
   name                   = local.db_server_name
   resource_group_name    = azurerm_resource_group.main.name
   location               = azurerm_resource_group.main.location
-  version                = "16"
+  version                = "15"
   sku_name               = "B_Standard_B1ms"
   storage_mb             = 32768
   auto_grow_enabled      = false
