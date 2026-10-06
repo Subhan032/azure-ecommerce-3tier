@@ -1,0 +1,144 @@
+name: Application Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  build-and-deploy-backend:
+    name: Build & Deploy Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: |
+          ACR_NAME="${{ vars.ACR_NAME }}"
+          if [ -z "$ACR_NAME" ]; then
+            echo "Error: ACR_NAME repository variable is not set." >&2
+            exit 1
+          fi
+          az acr login --name "$ACR_NAME"
+
+      - name: Build Backend Docker Image
+        run: |
+          ACR_SERVER="${{ vars.ACR_LOGIN_SERVER || format('{0}.azurecr.io', vars.ACR_NAME) }}"
+          IMAGE_URI="$ACR_SERVER/backend"
+          echo "Building image $IMAGE_URI:${{ github.sha }} and $IMAGE_URI:latest"
+          docker build \
+            -t "$IMAGE_URI:${{ github.sha }}" \
+            -t "$IMAGE_URI:latest" \
+            ./backend
+
+      - name: Push Backend Docker Image
+        run: |
+          ACR_SERVER="${{ vars.ACR_LOGIN_SERVER || format('{0}.azurecr.io', vars.ACR_NAME) }}"
+          IMAGE_URI="$ACR_SERVER/backend"
+          docker push "$IMAGE_URI:${{ github.sha }}"
+          docker push "$IMAGE_URI:latest"
+
+      - name: Update Azure Container App Revision
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          ACR_SERVER="${{ vars.ACR_LOGIN_SERVER || format('{0}.azurecr.io', vars.ACR_NAME) }}"
+          IMAGE_TAG="$ACR_SERVER/backend:${{ github.sha }}"
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME || 'ca-backend-prod' }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP || vars.AZURE_RESOURCE_GROUP_NAME || 'rg-ecommerce-3tier-prod' }}" \
+            --image "$IMAGE_TAG"
+
+  build-and-deploy-frontend:
+    name: Build & Deploy Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve Static Web App Deployment Token
+        id: swa-token
+        run: |
+          if [ -n "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" ]; then
+            echo "token=${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" >> "$GITHUB_OUTPUT"
+          else
+            TOKEN=$(az staticwebapp secrets list \
+              --name "${{ vars.STATIC_WEB_APP_NAME || 'swa-ecommerce-prod' }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP || vars.AZURE_RESOURCE_GROUP_NAME || 'rg-ecommerce-3tier-prod' }}" \
+              --query "properties.apiKey" -o tsv)
+            echo "::add-mask::$TOKEN"
+            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.CONTAINER_APP_URL }}
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "frontend/dist"
+          skip_app_build: true
+
