@@ -18,13 +18,20 @@ variable "resource_group_name" {
 
 variable "db_admin_username" {
   type        = string
-  description = "The administrator login username for PostgreSQL Flexible Server."
-  default     = "pgadmin"
+  description = "The administrator login username for MySQL Flexible Server."
+  default     = "mysqladmin"
+}
+
+variable "db_admin_password" {
+  type        = string
+  description = "The administrator login password for MySQL Flexible Server."
+  sensitive   = true
+  default     = null
 }
 
 variable "db_server_name" {
   type        = string
-  description = "Optional custom name for PostgreSQL Flexible Server. If null, a name with a random suffix will be generated."
+  description = "Optional custom name for MySQL Flexible Server. If null, a name with a random suffix will be generated."
   default     = null
 }
 

@@ -24,34 +24,34 @@ output "log_analytics_workspace_workspace_id" {
 }
 
 output "db_server_name" {
-  description = "The name of the PostgreSQL Flexible Server."
-  value       = azurerm_postgresql_flexible_server.db.name
+  description = "The name of the MySQL Flexible Server."
+  value       = azurerm_mysql_flexible_server.mysql.name
 }
 
 output "db_server_fqdn" {
-  description = "The fully qualified domain name (FQDN) of the PostgreSQL Flexible Server."
-  value       = azurerm_postgresql_flexible_server.db.fqdn
+  description = "The fully qualified domain name (FQDN) of the MySQL Flexible Server."
+  value       = azurerm_mysql_flexible_server.mysql.fqdn
 }
 
 output "db_database_name" {
-  description = "The name of the ecommerce PostgreSQL database."
-  value       = azurerm_postgresql_flexible_server_database.ecommerce_db.name
+  description = "The name of the ecommerce MySQL database."
+  value       = azurerm_mysql_flexible_database.ecommerce_db.name
 }
 
 output "db_admin_username" {
-  description = "The administrator username for PostgreSQL Flexible Server."
-  value       = azurerm_postgresql_flexible_server.db.administrator_login
+  description = "The administrator username for MySQL Flexible Server."
+  value       = azurerm_mysql_flexible_server.mysql.administrator_login
 }
 
 output "db_admin_password" {
-  description = "The administrator password for PostgreSQL Flexible Server."
-  value       = random_password.db_password.result
+  description = "The administrator password for MySQL Flexible Server."
+  value       = local.db_admin_password
   sensitive   = true
 }
 
 output "database_url" {
-  description = "Connection string for the PostgreSQL database (Prisma format)."
-  value       = "postgresql://${azurerm_postgresql_flexible_server.db.administrator_login}:${random_password.db_password.result}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/${azurerm_postgresql_flexible_server_database.ecommerce_db.name}?sslmode=require"
+  description = "Connection string for the MySQL database (Prisma format)."
+  value       = "mysql://${azurerm_mysql_flexible_server.mysql.administrator_login}:${local.db_admin_password}@${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${azurerm_mysql_flexible_database.ecommerce_db.name}?ssl-mode=REQUIRED"
   sensitive   = true
 }
 

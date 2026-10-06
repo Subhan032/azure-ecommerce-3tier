@@ -50,12 +50,12 @@ resource "azurerm_container_app" "backend" {
 
   secret {
     name  = "db-password"
-    value = random_password.db_password.result
+    value = local.db_admin_password
   }
 
   secret {
     name  = "database-url"
-    value = "postgresql://${azurerm_postgresql_flexible_server.db.administrator_login}:${random_password.db_password.result}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/${azurerm_postgresql_flexible_server_database.ecommerce_db.name}?sslmode=require"
+    value = "mysql://${azurerm_mysql_flexible_server.mysql.administrator_login}:${local.db_admin_password}@${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${azurerm_mysql_flexible_database.ecommerce_db.name}?ssl-mode=REQUIRED"
   }
 
   registry {
@@ -99,19 +99,19 @@ resource "azurerm_container_app" "backend" {
       }
       env {
         name  = "DB_HOST"
-        value = azurerm_postgresql_flexible_server.db.fqdn
+        value = azurerm_mysql_flexible_server.mysql.fqdn
       }
       env {
         name  = "DB_USER"
-        value = azurerm_postgresql_flexible_server.db.administrator_login
+        value = azurerm_mysql_flexible_server.mysql.administrator_login
       }
       env {
         name  = "DB_PORT"
-        value = "5432"
+        value = "3306"
       }
       env {
         name  = "DB_NAME"
-        value = azurerm_postgresql_flexible_server_database.ecommerce_db.name
+        value = azurerm_mysql_flexible_database.ecommerce_db.name
       }
       env {
         name        = "DB_PASSWORD"
